@@ -22,22 +22,22 @@
 
         #main-wrapper {
             width: 100%;
-            max-width: 450px; 
+            max-width: 420px; /* Clamps desktop size cleanly */
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             margin: 0 auto; 
-            padding: 10px;
+            padding: 12px;
             box-sizing: border-box;
         }
 
         /* Game Board (Canvas) Styling */
         #game-container {
             width: 100%;
-            border: 8px solid #ff69b4;
+            border: 6px solid #ff69b4;
             border-radius: 10px;
-            box-shadow: 0 0 25px rgba(255, 105, 180, 0.7);
+            box-shadow: 0 0 20px rgba(255, 105, 180, 0.6);
             margin: 5px 0;
             display: flex;
             flex-direction: column;
@@ -56,29 +56,11 @@
             display: flex;
             justify-content: space-between;
             width: 100%;
-            padding: 8px 5px;
-            font-size: 1.2em;
+            padding: 6px 8px;
+            font-size: 1.1em;
             box-sizing: border-box;
-        }
-        
-        /* Start Button Styling */
-        .control-buttons { margin-top: 10px; }
-        .control-buttons button, #mobile-controls button, #message-box button {
-            background-color: #ff69b4;
-            color: #111111;
-            border: none;
-            padding: 12px 24px; 
-            margin: 5px; 
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            text-transform: uppercase;
-            transition: background-color 0.1s ease-out;
-        }
-        
-        .button-active {
-            background-color: white !important;
-            color: #ff69b4 !important;
+            background-color: #222222;
+            border-bottom: 2px solid #ff69b4;
         }
 
         /* Mobile D-Pad Styling */
@@ -87,18 +69,30 @@
             grid-template-areas: ". up ." "left center right" ". down .";
             grid-template-columns: 1fr 1fr 1fr;
             gap: 8px;
-            width: 160px; 
-            margin-top: 10px;
+            width: 150px; 
+            margin-top: 12px;
             touch-action: manipulation; 
         }
         #mobile-controls button {
             width: 100%;
-            height: 38px;
+            height: 36px;
             padding: 0;
             margin: 0;
             font-size: 1.1em; 
+            background-color: #ff69b4;
+            color: #111111;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
             user-select: none; 
             -webkit-user-select: none;
+            transition: background-color 0.1s ease-out;
+        }
+        
+        .button-active {
+            background-color: white !important;
+            color: #ff69b4 !important;
         }
 
         /* Game Over Modal Styling */
@@ -121,10 +115,15 @@
             max-width: 350px;
             text-align: center;
         }
-
-        @media (max-height: 650px) {
-            #mobile-controls { margin-top: 5px; }
-            #game-container { margin: 5px 0; }
+        #modal-content button {
+            background-color: #ff69b4;
+            color: #111111;
+            border: none;
+            padding: 12px 24px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            text-transform: uppercase;
         }
     </style>
 </head>
@@ -146,10 +145,6 @@
             <button id="right-btn" style="grid-area: right;">→</button>
             <button id="down-btn" style="grid-area: down;">↓</button>
         </div>
-        
-        <div class="control-buttons">
-            <button id="start-button">Start Game</button>
-        </div>
     </div>
 
     <div id="message-box">
@@ -168,7 +163,6 @@
             const ctx = canvas.getContext('2d');
             const scoreDisplay = document.getElementById('score-display');
             const speedDisplay = document.getElementById('speed-display');
-            const startButton = document.getElementById('start-button');
             const upBtn = document.getElementById('up-btn');
             const downBtn = document.getElementById('down-btn');
             const leftBtn = document.getElementById('left-btn');
@@ -191,10 +185,9 @@
             let prize = {}; 
             let score = 0;
             let gameSpeed = initialSpeed;
-            let isPlaying = false;
+            let isPlaying = true; // FIXED: Game now self-starts immediately on load
             let gameInterval;
             let nextDirection = { x: 1, y: 0 };
-            let isGamePaused = false;
             let assetsLoaded = false;
             let isInputProcessed = false; 
             let particles = []; 
@@ -204,21 +197,19 @@
                 assetsLoaded = true;
                 initializeGameSize(); 
                 resetGame();
-                drawGame();
+                gameLoop(); // Start processing the loop right away
             };
             prizeImage.onerror = () => {
                 assetsLoaded = false;
                 initializeGameSize(); 
                 resetGame();
-                drawGame();
+                gameLoop();
             };
 
             function initializeGameSize() {
-                let containerWidth = mainWrapper.clientWidth > 16 ? mainWrapper.clientWidth - 16 : 300; 
-                const availableHeight = window.innerHeight - 150; 
-                if (containerWidth > availableHeight) {
-                    containerWidth = availableHeight;
-                }
+                // FIXED: Calculates dimensions relative strictly to the bounding wrapper box size, not the screen height
+                let containerWidth = mainWrapper.clientWidth > 16 ? mainWrapper.clientWidth - 16 : 280; 
+                
                 containerWidth = Math.floor(containerWidth / tileCount) * tileCount;
                 canvas.width = containerWidth;
                 canvas.height = containerWidth;
@@ -231,7 +222,6 @@
                 velocityY = 0;
                 score = 0;
                 gameSpeed = initialSpeed;
-                isGamePaused = false;
                 scoreDisplay.textContent = 'Score: 0';
                 speedDisplay.textContent = 'Speed: 1x';
                 messageBox.style.display = 'none';
@@ -272,10 +262,6 @@
             }
 
             function gameLoop() {
-                if (isGamePaused) {
-                    gameInterval = setTimeout(gameLoop, gameSpeed);
-                    return;
-                }
                 isInputProcessed = false; 
                 velocityX = nextDirection.x; velocityY = nextDirection.y;
                 const head = { x: snake[0].x + velocityX, y: snake[0].y + velocityY };
@@ -375,7 +361,6 @@
                 else if (score >= 5) rewardText = "🎁 GOOD RUN! You earned Free Shipping on your next order!";
                 else rewardText = "Better luck next time! Play again to beat your best score!";
                 rewardMessage.textContent = rewardText;
-                startButton.style.display = 'inline-block';
             }
 
             function updateDirection(newVX, newVY) {
@@ -409,7 +394,7 @@
                 button.addEventListener('touchcancel', removeActive);
             }
             
-            [upBtn, downBtn, leftBtn, rightBtn, startButton, playAgainBtn].forEach(addButtonFeedback);
+            [upBtn, downBtn, leftBtn, rightBtn, playAgainBtn].forEach(addButtonFeedback);
             
             const triggerUp = (e) => { e.preventDefault(); updateDirection(0, -1); };
             const triggerDown = (e) => { e.preventDefault(); updateDirection(0, 1); };
@@ -421,19 +406,11 @@
             leftBtn.addEventListener('touchstart', triggerLeft); leftBtn.addEventListener('click', triggerLeft);
             rightBtn.addEventListener('touchstart', triggerRight); rightBtn.addEventListener('click', triggerRight);
 
-            startButton.addEventListener('click', () => {
-                if (!isPlaying) {
-                    isPlaying = true;
-                    resetGame();
-                    startButton.style.display = 'none';
-                    gameLoop(); 
-                }
-            });
-
             playAgainBtn.addEventListener('click', () => {
                 messageBox.style.display = 'none';
+                isPlaying = true;
                 resetGame();
-                drawGame();
+                gameLoop();
             });
 
             window.addEventListener('resize', () => {
